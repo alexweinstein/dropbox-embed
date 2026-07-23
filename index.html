@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dropbox Embed</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f7f7f8;
+    --text: #1a1a1a;
+    --muted: #6b6b70;
+    --accent: #0061fe;
+    --border: #e5e5e7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --card: #232427;
+      --text: #f2f2f3;
+      --muted: #9a9aa0;
+      --accent: #4d94ff;
+      --border: #33343a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 12px;
+  }
+  .player-card {
+    width: 100%;
+    max-width: 640px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  audio, video {
+    width: 100%;
+    display: block;
+    accent-color: var(--accent);
+    border-radius: 8px;
+  }
+  video {
+    max-height: 360px;
+    background: #000;
+  }
+  .message {
+    max-width: 560px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 20px;
+  }
+  .message code {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 13px;
+  }
+  .message strong { color: var(--text); }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    const AUDIO_EXT = ["mp3","wav","ogg","oga","m4a","aac","flac","wma","weba"];
+    const VIDEO_EXT = ["mp4","m4v","mov","webm","ogv","avi","mkv"];
+    const DROPBOX_HOSTS = ["www.dropbox.com", "dropbox.com", "dl.dropboxusercontent.com", "www.dropboxusercontent.com"];
+
+    function toDirectUrl(shareUrl) {
+      const url = new URL(shareUrl);
+      if (!DROPBOX_HOSTS.includes(url.hostname)) return null;
+      url.hostname = "dl.dropboxusercontent.com";
+      url.searchParams.set("dl", "1");
+      return url.toString();
+    }
+
+    function mediaKind(pathname) {
+      const ext = pathname.split(".").pop().toLowerCase();
+      if (AUDIO_EXT.includes(ext)) return "audio";
+      if (VIDEO_EXT.includes(ext)) return "video";
+      return null;
+    }
+
+    function filenameFrom(pathname) {
+      const last = decodeURIComponent(pathname.split("/").pop() || "");
+      return last.replace(/\.[a-zA-Z0-9]+$/, "");
+    }
+
+    function render(html) {
+      document.getElementById("root").innerHTML = html;
+    }
+
+    function showMessage(html) {
+      render(`<div class="message">${html}</div>`);
+    }
+
+    function init() {
+      const params = new URLSearchParams(window.location.search);
+      const href = params.get("href");
+
+      if (!href) {
+        showMessage(`Add a Dropbox file share link as <code>?href=</code> on this page's URL to embed a player.<br><br>Example:<br><code>?href=https://www.dropbox.com/scl/fi/abc123/song.mp3?rlkey=xyz&dl=0</code>`);
+        return;
+      }
+
+      let sourceUrl, kind, pathname;
+      try {
+        const original = new URL(href);
+        pathname = original.pathname;
+        sourceUrl = toDirectUrl(href);
+      } catch (e) {
+        showMessage(`<strong>Invalid link.</strong><br>That doesn't look like a valid URL.`);
+        return;
+      }
+
+      if (!sourceUrl) {
+        showMessage(`<strong>Not a Dropbox link.</strong><br>Please pass a share link from dropbox.com.`);
+        return;
+      }
+
+      if (pathname.startsWith("/scl/fo/")) {
+        showMessage(`<strong>That's a folder link.</strong><br>This player only supports single-file share links for now. Right-click the individual audio/video file in Dropbox and choose "Copy link".`);
+        return;
+      }
+
+      kind = mediaKind(pathname);
+      if (!kind) {
+        showMessage(`<strong>Unrecognized file type.</strong><br>Couldn't tell if this is audio or video from the filename.`);
+        return;
+      }
+
+      const title = filenameFrom(pathname);
+      const tag = kind === "audio" ? "audio" : "video";
+      render(`
+        <div class="player-card">
+          <p class="title" title="${title}">${title}</p>
+          <${tag} controls preload="metadata" src="${sourceUrl}"></${tag}>
+        </div>
+      `);
+    }
+
+    init();
+  </script>
+</body>
+</html>
