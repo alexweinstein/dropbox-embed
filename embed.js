@@ -25,15 +25,24 @@
 
   script.parentNode.insertBefore(iframe, script.nextSibling);
 
-  if (!window.__dropboxEmbedResizeListener) {
-    window.__dropboxEmbedResizeListener = true;
+  if (!window.__dropboxEmbedListener) {
+    window.__dropboxEmbedListener = true;
     window.addEventListener("message", function (e) {
       if (!e.data || e.data.source !== "dropbox-embed") return;
       var iframes = document.getElementsByTagName("iframe");
-      for (var i = 0; i < iframes.length; i++) {
-        if (iframes[i].contentWindow === e.source) {
-          iframes[i].style.height = e.data.height + "px";
-          break;
+
+      if (e.data.type === "resize") {
+        for (var i = 0; i < iframes.length; i++) {
+          if (iframes[i].contentWindow === e.source) {
+            iframes[i].style.height = e.data.height + "px";
+            break;
+          }
+        }
+      } else if (e.data.type === "play") {
+        for (var j = 0; j < iframes.length; j++) {
+          if (iframes[j].contentWindow !== e.source) {
+            iframes[j].contentWindow.postMessage({ source: "dropbox-embed", type: "pause" }, "*");
+          }
         }
       }
     });

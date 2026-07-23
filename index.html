@@ -225,7 +225,7 @@
     function reportHeight() {
       if (window.parent === window) return;
       window.parent.postMessage(
-        { source: "dropbox-embed", height: document.body.scrollHeight },
+        { source: "dropbox-embed", type: "resize", height: document.body.scrollHeight },
         "*"
       );
     }
@@ -233,6 +233,13 @@
     if (window.parent !== window) {
       new ResizeObserver(reportHeight).observe(document.body);
     }
+
+    let activeMedia = null;
+    window.addEventListener("message", (e) => {
+      if (e.data && e.data.source === "dropbox-embed" && e.data.type === "pause" && activeMedia) {
+        activeMedia.pause();
+      }
+    });
 
     function init() {
       const params = new URLSearchParams(window.location.search);
@@ -315,12 +322,17 @@
       const durationEl = card.querySelector(".time.duration");
       let seeking = false;
 
+      activeMedia = media;
+
       playBtn.addEventListener("click", () => {
         media.paused ? media.play() : media.pause();
       });
       media.addEventListener("play", () => {
         playBtn.innerHTML = ICON_PAUSE;
         playBtn.setAttribute("aria-label", "Pause");
+        if (window.parent !== window) {
+          window.parent.postMessage({ source: "dropbox-embed", type: "play" }, "*");
+        }
       });
       media.addEventListener("pause", () => {
         playBtn.innerHTML = ICON_PLAY;
