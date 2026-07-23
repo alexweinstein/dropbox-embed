@@ -393,6 +393,17 @@
             progressColor: styles.getPropertyValue("--accent").trim(),
             media: media,
           });
+
+          let resumeAfterSeek = false;
+          waveformEl.addEventListener("pointerdown", () => {
+            resumeAfterSeek = !media.paused;
+          });
+          media.addEventListener("seeked", () => {
+            if (resumeAfterSeek) {
+              resumeAfterSeek = false;
+              media.play();
+            }
+          });
         } catch (e) {
           console.warn("dropbox-embed: waveform failed to initialize", e);
         }
