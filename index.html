@@ -35,7 +35,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 100vh;
     padding: 12px;
   }
   .player-card {
@@ -212,10 +211,23 @@
 
     function render(html) {
       document.getElementById("root").innerHTML = html;
+      reportHeight();
     }
 
     function showMessage(html) {
       render(`<div class="message">${html}</div>`);
+    }
+
+    function reportHeight() {
+      if (window.parent === window) return;
+      window.parent.postMessage(
+        { source: "dropbox-embed", height: document.body.scrollHeight },
+        "*"
+      );
+    }
+
+    if (window.parent !== window) {
+      new ResizeObserver(reportHeight).observe(document.body);
     }
 
     function init() {
