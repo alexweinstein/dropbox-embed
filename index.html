@@ -55,15 +55,65 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  audio, video {
+  video {
     width: 100%;
     display: block;
-    accent-color: var(--accent);
-    border-radius: 8px;
-  }
-  video {
     max-height: 360px;
     background: #000;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .play-btn {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .play-btn svg { width: 14px; height: 14px; }
+  .time {
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 34px;
+    text-align: center;
+  }
+  .seek {
+    flex: 1 1 auto;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .seek::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .seek::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
   }
   .message {
     max-width: 560px;
@@ -159,9 +209,66 @@
       render(`
         <div class="player-card">
           <p class="title" title="${title}">${title}</p>
-          <${tag} controls preload="metadata" src="${sourceUrl}"></${tag}>
+          <${tag} class="media" preload="metadata" playsinline src="${sourceUrl}"></${tag}>
+          <div class="controls">
+            <button class="play-btn" aria-label="Play">${ICON_PLAY}</button>
+            <span class="time current">0:00</span>
+            <input class="seek" type="range" min="0" max="100" value="0" step="0.1">
+            <span class="time duration">0:00</span>
+          </div>
         </div>
       `);
+      wireControls(document.querySelector(".media"), document.querySelector(".player-card"));
+    }
+
+    const ICON_PLAY = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 1.5v13l11-6.5-11-6.5z"/></svg>';
+    const ICON_PAUSE = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 1.5h4v13H3v-13zm6 0h4v13H9v-13z"/></svg>';
+
+    function formatTime(seconds) {
+      if (!isFinite(seconds)) return "0:00";
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60).toString().padStart(2, "0");
+      return `${m}:${s}`;
+    }
+
+    function wireControls(media, card) {
+      const playBtn = card.querySelector(".play-btn");
+      const seek = card.querySelector(".seek");
+      const currentEl = card.querySelector(".time.current");
+      const durationEl = card.querySelector(".time.duration");
+      let seeking = false;
+
+      playBtn.addEventListener("click", () => {
+        media.paused ? media.play() : media.pause();
+      });
+      media.addEventListener("play", () => {
+        playBtn.innerHTML = ICON_PAUSE;
+        playBtn.setAttribute("aria-label", "Pause");
+      });
+      media.addEventListener("pause", () => {
+        playBtn.innerHTML = ICON_PLAY;
+        playBtn.setAttribute("aria-label", "Play");
+      });
+      media.addEventListener("loadedmetadata", () => {
+        durationEl.textContent = formatTime(media.duration);
+      });
+      media.addEventListener("timeupdate", () => {
+        if (seeking) return;
+        currentEl.textContent = formatTime(media.currentTime);
+        seek.value = media.duration ? (media.currentTime / media.duration) * 100 : 0;
+      });
+      media.addEventListener("ended", () => {
+        playBtn.innerHTML = ICON_PLAY;
+        playBtn.setAttribute("aria-label", "Play");
+      });
+      seek.addEventListener("input", () => {
+        seeking = true;
+        currentEl.textContent = formatTime((seek.value / 100) * media.duration);
+      });
+      seek.addEventListener("change", () => {
+        media.currentTime = (seek.value / 100) * media.duration;
+        seeking = false;
+      });
     }
 
     init();
