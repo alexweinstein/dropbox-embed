@@ -201,6 +201,15 @@
       return last.replace(/\.[a-zA-Z0-9]+$/, "");
     }
 
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
     function render(html) {
       document.getElementById("root").innerHTML = html;
     }
@@ -212,6 +221,7 @@
     function init() {
       const params = new URLSearchParams(window.location.search);
       const href = params.get("href");
+      const titleParam = params.get("title");
 
       if (!href) {
         showMessage(`Add a Dropbox file share link as <code>?href=</code> on this page's URL to embed a player.<br><br>Example:<br><code>?href=https://www.dropbox.com/scl/fi/abc123/song.mp3?rlkey=xyz&dl=0</code>`);
@@ -244,12 +254,13 @@
         return;
       }
 
-      const title = filenameFrom(pathname);
+      const title = escapeHtml(titleParam || filenameFrom(pathname));
+      const safeSourceUrl = escapeHtml(sourceUrl);
       const tag = kind === "audio" ? "audio" : "video";
       render(`
         <div class="player-card">
           <p class="title" title="${title}">${title}</p>
-          <${tag} class="media" preload="metadata" playsinline src="${sourceUrl}"></${tag}>
+          <${tag} class="media" preload="metadata" playsinline src="${safeSourceUrl}"></${tag}>
           <div class="controls">
             <button class="play-btn" aria-label="Play">${ICON_PLAY}</button>
             <span class="time current">0:00</span>
