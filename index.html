@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dropbox Embed</title>
+<script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
 <style>
   :root {
     --bg: #ffffff;
@@ -113,6 +114,16 @@
     border: none;
     border-radius: 50%;
     background: var(--accent);
+  }
+  .waveform {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  .time-combo {
+    flex: 1 1 auto;
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
   }
   .icon-btn {
     flex: 0 0 auto;
@@ -269,16 +280,22 @@
       const title = escapeHtml(titleParam || filenameFrom(pathname));
       const safeSourceUrl = escapeHtml(sourceUrl);
       const tag = kind === "audio" ? "audio" : "video";
+      const mediaArea = kind === "audio"
+        ? `<div class="waveform"></div><audio class="media" preload="metadata" src="${safeSourceUrl}" style="display:none"></audio>`
+        : `<${tag} class="media" preload="metadata" playsinline src="${safeSourceUrl}"></${tag}>`;
+      const controlsExtra = kind === "audio"
+        ? `<span class="time-combo"><span class="time current">0:00</span> / <span class="time duration">0:00</span></span>`
+        : `<span class="time current">0:00</span>
+           <input class="seek" type="range" min="0" max="100" value="0" step="0.1">
+           <span class="time duration">0:00</span>
+           ${document.fullscreenEnabled ? `<button class="fullscreen-btn icon-btn" aria-label="Full screen">${ICON_FS_ENTER}</button>` : ""}`;
       render(`
         <div class="player-card">
           <p class="title" title="${title}">${title}</p>
-          <${tag} class="media" preload="metadata" playsinline src="${safeSourceUrl}"></${tag}>
+          ${mediaArea}
           <div class="controls">
             <button class="play-btn" aria-label="Play">${ICON_PLAY}</button>
-            <span class="time current">0:00</span>
-            <input class="seek" type="range" min="0" max="100" value="0" step="0.1">
-            <span class="time duration">0:00</span>
-            ${kind === "video" && document.fullscreenEnabled ? `<button class="fullscreen-btn icon-btn" aria-label="Full screen">${ICON_FS_ENTER}</button>` : ""}
+            ${controlsExtra}
           </div>
         </div>
       `);
@@ -321,20 +338,22 @@
       media.addEventListener("timeupdate", () => {
         if (seeking) return;
         currentEl.textContent = formatTime(media.currentTime);
-        seek.value = media.duration ? (media.currentTime / media.duration) * 100 : 0;
+        if (seek) seek.value = media.duration ? (media.currentTime / media.duration) * 100 : 0;
       });
       media.addEventListener("ended", () => {
         playBtn.innerHTML = ICON_PLAY;
         playBtn.setAttribute("aria-label", "Play");
       });
-      seek.addEventListener("input", () => {
-        seeking = true;
-        currentEl.textContent = formatTime((seek.value / 100) * media.duration);
-      });
-      seek.addEventListener("change", () => {
-        media.currentTime = (seek.value / 100) * media.duration;
-        seeking = false;
-      });
+      if (seek) {
+        seek.addEventListener("input", () => {
+          seeking = true;
+          currentEl.textContent = formatTime((seek.value / 100) * media.duration);
+        });
+        seek.addEventListener("change", () => {
+          media.currentTime = (seek.value / 100) * media.duration;
+          seeking = false;
+        });
+      }
 
       const fsBtn = card.querySelector(".fullscreen-btn");
       if (fsBtn) {
@@ -357,6 +376,26 @@
         };
         document.addEventListener("fullscreenchange", syncFsIcon);
         document.addEventListener("webkitfullscreenchange", syncFsIcon);
+      }
+
+      const waveformEl = card.querySelector(".waveform");
+      if (waveformEl && window.WaveSurfer) {
+        try {
+          const styles = getComputedStyle(document.documentElement);
+          WaveSurfer.create({
+            container: waveformEl,
+            height: 48,
+            cursorWidth: 0,
+            barWidth: 2,
+            barGap: 1,
+            barRadius: 2,
+            waveColor: styles.getPropertyValue("--muted").trim(),
+            progressColor: styles.getPropertyValue("--accent").trim(),
+            media: media,
+          });
+        } catch (e) {
+          console.warn("dropbox-embed: waveform failed to initialize", e);
+        }
       }
     }
 
